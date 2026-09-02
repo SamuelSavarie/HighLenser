@@ -30,7 +30,7 @@ public sealed class MainWindow : Window
     public MainWindow()
     {
         Title = "HighLenser"; Width = 920; Height = 780; MinWidth = 720; MinHeight = 620;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen; Background = Brushes.Transparent; Topmost = true; SystemDecorations = SystemDecorations.None;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen; Background = Brushes.Transparent; Topmost = true; WindowDecorations = Avalonia.Controls.WindowDecorations.None;
         _start.Click += (_, _) => ToggleWatcher();
         _followUp.KeyDown += async (_, e) => { if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(_followUp.Text)) { e.Handled = true; await AskFollowUpAsync(); } };
         _tabs.SelectionChanged += (_, _) => { if (_tabs.SelectedItem is SavedAnswer item) { _source = item.Source; _answer.Text = item.Answer; } };
