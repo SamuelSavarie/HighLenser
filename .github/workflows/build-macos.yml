@@ -1,0 +1,88 @@
+name: Build macOS Installers
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "src/HighLenser.Mac/**"
+      - ".github/workflows/build-macos.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runtime: osx-arm64
+            label: Apple-Silicon
+          - runtime: osx-x64
+            label: Intel
+    runs-on: macos-15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish HighLenser
+        run: >-
+          dotnet publish src/HighLenser.Mac/HighLenser.Mac.csproj
+          --configuration Release
+          --runtime ${{ matrix.runtime }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          --output publish
+
+      - name: Create Mac application and DMG
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          APP="$RUNNER_TEMP/HighLenser.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp -R publish/. "$APP/Contents/MacOS/"
+          cp src/HighLenser.Mac/Info.plist "$APP/Contents/Info.plist"
+          chmod +x "$APP/Contents/MacOS/HighLenser"
+
+          if [[ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]]; then
+            echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+            security create-keychain -p "$RUNNER_TEMP" build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "$RUNNER_TEMP" build.keychain
+            security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$RUNNER_TEMP" build.keychain
+            codesign --force --deep --options runtime --timestamp --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$APP"
+          else
+            codesign --force --deep --sign - "$APP"
+          fi
+
+          mkdir -p dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname HighLenser -srcfolder dmg -ov -format UDZO "HighLenser-macOS-$LABEL.dmg"
+
+          if [[ -n "${{ secrets.APPLE_ID }}" ]]; then
+            xcrun notarytool submit "HighLenser-macOS-$LABEL.dmg" --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}" --wait
+            xcrun stapler staple "HighLenser-macOS-$LABEL.dmg"
+          fi
+
+      - name: Upload Mac installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: HighLenser-macOS-${{ matrix.label }}
+          path: HighLenser-macOS-${{ matrix.label }}.dmg
+          if-no-files-found: error
+
+      - name: Attach installer to tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: HighLenser-macOS-${{ matrix.label }}.dmg
