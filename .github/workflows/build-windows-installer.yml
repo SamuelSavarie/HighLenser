@@ -26,6 +26,9 @@ jobs:
           if (-not (Test-Path "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj")) {
             throw "The downloaded HighLenser source package is missing SelectionLens.csproj"
           }
+          Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\MainWindow.xaml" "$env:GITHUB_WORKSPACE\Source\HighLenser\MainWindow.xaml" -Force
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" -Raw).Replace("<Version>1.0.0</Version>", "<Version>1.1.0</Version>") | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj"
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss" -Raw).Replace('#define MyAppVersion "1.0.0"', '#define MyAppVersion "1.1.0"') | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
@@ -69,9 +72,18 @@ jobs:
           path: Release/HighLenser-Setup.exe
           if-no-files-found: error
 
-      - name: Add installer to tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Ensure version 1.1.0 release exists
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v1.1.0 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create v1.1.0 --target main --title "HighLenser v1.1.0" --notes "Professional HUD redesign for Windows and macOS."
+          }
+
+      - name: Add installer to public release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.1.0
           files: Release/HighLenser-Setup.exe
-          generate_release_notes: true
