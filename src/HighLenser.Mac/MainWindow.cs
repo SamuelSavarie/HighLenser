@@ -76,6 +76,15 @@ public sealed class MainWindow : Window
         var access = HudButton("ACCESS"); access.Click += (_, _) => OpenAccessibilitySettings();
         tools.Children.Add(smaller); tools.Children.Add(larger); tools.Children.Add(hudSmaller); tools.Children.Add(hudLarger); tools.Children.Add(access); Grid.SetColumn(tools,2); footer.Children.Add(tools);
         Grid.SetRow(footer,5); root.Children.Add(footer);
+        Opened += async (_, _) =>
+        {
+            if (!OllamaSetupWindow.IsOllamaInstalled())
+            {
+                var setup = new OllamaSetupWindow();
+                bool ready = await setup.ShowDialog<bool>(this);
+                _status.Text = ready ? "Ollama detected — ready to investigate" : "Ollama required for explanations";
+            }
+        };
         Closed += (_, _) => { _request?.Cancel(); _watcher.Dispose(); };
     }
 
