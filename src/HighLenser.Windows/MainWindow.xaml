@@ -1,7 +1,7 @@
 <Window x:Class="SelectionLens.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="HighLenser" Icon="SelectionLensIcon.ico" Width="920" Height="780" MinWidth="720" MinHeight="620"
+        Title="HighLenser" Icon="SelectionLensIcon.ico" Width="920" Height="780" MinWidth="420" MinHeight="350"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResizeWithGrip" Topmost="True" ShowInTaskbar="True">
   <Window.Resources>
@@ -31,7 +31,8 @@
   <Border CornerRadius="28" BorderBrush="#365B86" BorderThickness="1.5" Padding="26">
     <Border.Effect><DropShadowEffect Color="#28E7FF" BlurRadius="22" ShadowDepth="0" Opacity="0.24" /></Border.Effect>
     <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#FC0A0F1C" Offset="0"/><GradientStop Color="#FC141230" Offset="0.62"/><GradientStop Color="#FC081A2B" Offset="1"/></LinearGradientBrush></Border.Background>
-    <Grid>
+    <Viewbox Stretch="Fill" StretchDirection="Both">
+    <Grid Width="860" Height="720">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition x:Name="SidePanelColumn" Width="0" />
@@ -72,9 +73,10 @@
         <Grid Grid.Row="3" Margin="0,0,0,14">
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TextBlock Text="SUMMARY LEVEL" Foreground="#AEB1BA" FontSize="12" VerticalAlignment="Center" Margin="0,0,18,0" />
-          <ComboBox x:Name="SummaryModeBox" Grid.Column="1" SelectedIndex="0" Height="46" MinWidth="195" HorizontalAlignment="Center"
+          <ComboBox x:Name="SummaryModeBox" Grid.Column="1" SelectedIndex="0" Height="50" Width="260" HorizontalAlignment="Center"
                     SelectionChanged="SummaryModeBox_SelectionChanged"
-                    Background="White" Foreground="Black" BorderBrush="#C9C9CF" Padding="6,2">
+                    Background="White" Foreground="Black" BorderBrush="#C9C9CF" Padding="8,4" FontSize="18" FontWeight="SemiBold"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
             <ComboBoxItem Content="Standard" Tag="Standard" Style="{StaticResource ModeItem}" />
             <ComboBoxItem Content="In Depth" Tag="InDepth" Style="{StaticResource ModeItem}" />
             <ComboBoxItem Content="Study Notes" Tag="StudyNotes" Style="{StaticResource ModeItem}" />
@@ -171,5 +173,6 @@
         </Grid>
       </Grid>
     </Grid>
+    </Viewbox>
   </Border>
 </Window>
