@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>HighLenser</AssemblyName>
     <RootNamespace>HighLenser.Mac</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>HighLenser</Product>
     <Description>Highlight text and understand it instantly with local AI.</Description>
   </PropertyGroup>
