@@ -1,0 +1,175 @@
+<Window x:Class="SelectionLens.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HighLenser" Icon="SelectionLensIcon.ico" Width="920" Height="780" MinWidth="720" MinHeight="620"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="CanResizeWithGrip" Topmost="True" ShowInTaskbar="True">
+  <Window.Resources>
+    <Style x:Key="HudButton" TargetType="Button">
+      <Setter Property="Foreground" Value="#DDFBFF"/><Setter Property="Background" Value="#17243A"/>
+      <Setter Property="BorderBrush" Value="#315373"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="14,8"/>
+      <Setter Property="FontSize" Value="13"/><Setter Property="Cursor" Value="Hand"/>
+      <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#24345B"/><Setter Property="BorderBrush" Value="#28E7FF"/><Setter Property="Foreground" Value="White"/></Trigger></Style.Triggers>
+    </Style>
+    <Style x:Key="ChoiceButton" TargetType="Button">
+      <Setter Property="Foreground" Value="#F3F7FF"/><Setter Property="Background" Value="#111C31"/>
+      <Setter Property="BorderBrush" Value="#31567A"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="6"/><Setter Property="FontSize" Value="14"/>
+      <Setter Property="Cursor" Value="Hand"/><Setter Property="MinHeight" Value="58"/>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203760"/><Setter Property="BorderBrush" Value="#28E7FF"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.82"/></Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ModeItem" TargetType="ComboBoxItem">
+      <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="Black"/>
+      <Setter Property="Padding" Value="8,5"/>
+      <Style.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter Property="Background" Value="#DDD7FF"/></Trigger></Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Border CornerRadius="28" BorderBrush="#365B86" BorderThickness="1.5" Padding="26">
+    <Border.Effect><DropShadowEffect Color="#28E7FF" BlurRadius="22" ShadowDepth="0" Opacity="0.24" /></Border.Effect>
+    <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#FC0A0F1C" Offset="0"/><GradientStop Color="#FC141230" Offset="0.62"/><GradientStop Color="#FC081A2B" Offset="1"/></LinearGradientBrush></Border.Background>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition x:Name="SidePanelColumn" Width="0" />
+      </Grid.ColumnDefinitions>
+
+      <Grid Grid.Column="0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" MouseLeftButtonDown="DragArea_MouseLeftButtonDown" Cursor="SizeAll">
+          <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal">
+            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="#5FE08A" Margin="0,0,14,0" />
+            <TextBlock Text="H I G H  //  L E N S E R" Foreground="#70F0FF" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <Button Content="⚙" Click="Settings_Click" Style="{StaticResource HudButton}" ToolTip="Settings" />
+            <Button Content="—" Click="Hide_Click" Style="{StaticResource HudButton}" ToolTip="Hide" />
+            <Button Content="×" Click="Exit_Click" Style="{StaticResource HudButton}" ToolTip="Exit" />
+          </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,28,0,18">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock Text="SAVED TABS" Foreground="#AEB1BA" FontSize="13" VerticalAlignment="Center" Margin="0,0,18,0" />
+          <ComboBox x:Name="SavedTabsBox" Grid.Column="1" Height="46" MinWidth="220" Padding="12,8" FontSize="15" FontWeight="SemiBold" Background="White" Foreground="Black"
+                    SelectionChanged="SavedTabsBox_SelectionChanged" DisplayMemberPath="Title" />
+          <Button Grid.Column="2" Content="SAVE TAB" Click="SaveTab_Click" Style="{StaticResource HudButton}" Margin="6,0,0,0" />
+          <Button Grid.Column="3" Content="DELETE" Click="DeleteTab_Click" Style="{StaticResource HudButton}" />
+        </Grid>
+
+        <RichTextBox x:Name="ExplanationBox" Grid.Row="2" Margin="0,12,0,18" Padding="8,18" Background="#100B1424"
+                     Foreground="#F4F4F6" BorderBrush="#18273C" BorderThickness="0,1" FontSize="18" IsReadOnly="True" IsDocumentEnabled="True"
+                     VerticalScrollBarVisibility="Auto" SelectionBrush="#7C5CFC" />
+
+        <Grid Grid.Row="3" Margin="0,0,0,14">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock Text="SUMMARY LEVEL" Foreground="#AEB1BA" FontSize="12" VerticalAlignment="Center" Margin="0,0,18,0" />
+          <ComboBox x:Name="SummaryModeBox" Grid.Column="1" SelectedIndex="0" Height="46" MinWidth="195" HorizontalAlignment="Center"
+                    SelectionChanged="SummaryModeBox_SelectionChanged"
+                    Background="White" Foreground="Black" BorderBrush="#C9C9CF" Padding="6,2">
+            <ComboBoxItem Content="Standard" Tag="Standard" Style="{StaticResource ModeItem}" />
+            <ComboBoxItem Content="In Depth" Tag="InDepth" Style="{StaticResource ModeItem}" />
+            <ComboBoxItem Content="Study Notes" Tag="StudyNotes" Style="{StaticResource ModeItem}" />
+          </ComboBox>
+          <Button Grid.Column="2" Content="EXPLORE SELECTED" Click="ExploreSelected_Click" Style="{StaticResource HudButton}" ToolTip="Explain selected words more deeply" />
+          <Button Grid.Column="3" Content="COPY" Click="Copy_Click" Style="{StaticResource HudButton}" />
+        </Grid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,8">
+          <Button Content="START QUIZ" Click="StartQuiz_Click" Background="#30333C" Foreground="White" BorderBrush="#4A4E59"
+                  BorderThickness="1" Padding="14,5" Margin="0,0,8,0" FontWeight="SemiBold" Cursor="Hand" />
+          <Button x:Name="ReturnToQuizButton" Content="GO BACK TO QUIZ" Click="ReturnToQuiz_Click" Background="#F3D84A"
+                  Foreground="#181A20" BorderThickness="0" Padding="14,5" FontWeight="SemiBold" Cursor="Hand" Visibility="Collapsed" />
+        </StackPanel>
+
+        <Grid Grid.Row="5" Margin="0,4,0,14">
+          <TextBox x:Name="FollowUpBox" Height="56" Padding="16,14" FontSize="15" Background="#121C30" Foreground="White" BorderBrush="#315E78"
+                   KeyDown="FollowUpBox_KeyDown" ToolTip="Ask a question or request more information" />
+        </Grid>
+
+        <Grid Grid.Row="6">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Button x:Name="StartStopButton" Content="START" Click="StartStop_Click" Background="#7C5CFC" Foreground="White"
+                  BorderThickness="0" Padding="24,10" Margin="0,0,18,0" FontWeight="SemiBold" Cursor="Hand" />
+          <TextBlock x:Name="StatusText" Grid.Column="1" Text="Stopped" Foreground="#888C98" FontSize="13" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal">
+            <Button Content="A−" Click="Smaller_Click" Style="{StaticResource HudButton}"/><Button Content="A+" Click="Larger_Click" Style="{StaticResource HudButton}"/>
+            <Button Content="HUD−" Click="HudSmaller_Click" Style="{StaticResource HudButton}"/><Button Content="HUD+" Click="HudLarger_Click" Style="{StaticResource HudButton}"/>
+          </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="7" HorizontalAlignment="Left" IsHitTestVisible="False" Margin="0,8,0,0">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Image x:Name="MascotImage" Width="80" Height="80" Stretch="Uniform" Source="Assets/mascot-idle.png" RenderTransformOrigin="0.5,0.5" />
+          <Border x:Name="MascotBubble" Grid.Column="1" Background="#E9162137" BorderBrush="#28E7FF" BorderThickness="1" CornerRadius="10"
+                  Padding="10,6" MaxWidth="230" VerticalAlignment="Center" Visibility="Collapsed">
+            <TextBlock x:Name="MascotSpeech" Foreground="White" FontSize="11" TextWrapping="Wrap" />
+          </Border>
+        </Grid>
+      </Grid>
+
+      <Border x:Name="SidePanel" Grid.Column="1" Margin="14,0,0,0" Padding="14,0,0,0" BorderBrush="#3D414B" BorderThickness="1,0,0,0" Visibility="Collapsed">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Text="DEEPER LOOK" Foreground="#B8BBC5" FontSize="11" FontWeight="SemiBold" />
+            <Button Grid.Column="1" Content="×" Click="CloseSidePanel_Click" Style="{StaticResource HudButton}" />
+          </Grid>
+          <TextBlock x:Name="SelectedTopicText" Grid.Row="1" Margin="0,10,0,8" Foreground="#AFA1FF" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <RichTextBox x:Name="SideExplanationBox" Grid.Row="2" Background="Transparent" Foreground="#F4F4F6" BorderThickness="0"
+                       Padding="0" FontSize="13" IsReadOnly="True" VerticalScrollBarVisibility="Auto" SelectionBrush="#7C5CFC" />
+          <Button Grid.Row="3" Content="COPY DEEPER LOOK" Click="CopySide_Click" Style="{StaticResource HudButton}" HorizontalAlignment="Right" />
+        </Grid>
+      </Border>
+
+      <Grid x:Name="QuizView" Grid.ColumnSpan="2" Visibility="Collapsed">
+        <Grid.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#07101F" Offset="0"/><GradientStop Color="#16113A" Offset="0.55"/><GradientStop Color="#062435" Offset="1"/></LinearGradientBrush></Grid.Background>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" MouseLeftButtonDown="DragArea_MouseLeftButtonDown" Cursor="SizeAll">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Button Content="←" Click="BackFromQuiz_Click" Style="{StaticResource HudButton}" FontSize="22" ToolTip="Back to HighLenser" />
+          <TextBlock Grid.Column="1" Text="HIGHLENSER QUIZ" Foreground="#F4F4F6" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <TextBlock x:Name="QuizScoreText" Grid.Column="2" Foreground="#AFA1FF" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </Grid>
+        <TextBlock x:Name="QuizProgressText" Grid.Row="1" Margin="0,12,0,5" Foreground="#888C98" FontSize="11" HorizontalAlignment="Center" />
+        <Border Grid.Row="2" x:Name="QuizFeedbackBorder" Background="#252831" CornerRadius="8" Padding="10" Margin="0,5,0,10" Visibility="Collapsed">
+          <TextBlock x:Name="QuizFeedbackText" Foreground="#F4F4F6" TextWrapping="Wrap" />
+        </Border>
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+          <TextBlock x:Name="QuizQuestionText" Foreground="White" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap"
+                     TextAlignment="Center" VerticalAlignment="Center" Margin="24" />
+        </ScrollViewer>
+        <UniformGrid x:Name="QuizChoicesPanel" Grid.Row="4" Columns="2" Rows="2" Margin="0,2,0,4">
+          <Button x:Name="QuizChoice0" Tag="0" Click="QuizChoice_Click" Style="{StaticResource ChoiceButton}" />
+          <Button x:Name="QuizChoice1" Tag="1" Click="QuizChoice_Click" Style="{StaticResource ChoiceButton}" />
+          <Button x:Name="QuizChoice2" Tag="2" Click="QuizChoice_Click" Style="{StaticResource ChoiceButton}" />
+          <Button x:Name="QuizChoice3" Tag="3" Click="QuizChoice_Click" Style="{StaticResource ChoiceButton}" />
+        </UniformGrid>
+        <Grid Grid.Row="5" Margin="0,10,0,0">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="76"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Image x:Name="QuizMascotImage" Width="72" Height="72" Stretch="Uniform" Source="Assets/mascot-idle.png" RenderTransformOrigin="0.5,0.5" />
+          <Border x:Name="QuizMascotBubble" Grid.Column="1" Background="#E9162137" BorderBrush="#28E7FF" BorderThickness="1" CornerRadius="10"
+                  Padding="10,6" MaxWidth="260" VerticalAlignment="Center" Visibility="Collapsed">
+            <TextBlock x:Name="QuizMascotSpeech" Foreground="White" FontSize="11" TextWrapping="Wrap" />
+          </Border>
+          <Button x:Name="NextQuizButton" Grid.Column="2" Content="NEXT QUESTION" Click="NextQuiz_Click" Background="#28E7FF" Foreground="#08111E"
+                  BorderThickness="0" Padding="14,6" Margin="8,0" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed" />
+          <Button Grid.Column="3" Content="END QUIZ" Click="EndQuiz_Click" Background="#CA4B56" Foreground="White"
+                  BorderThickness="0" Padding="14,6" FontWeight="SemiBold" Cursor="Hand" />
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>
