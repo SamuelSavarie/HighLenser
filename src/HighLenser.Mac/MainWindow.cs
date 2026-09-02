@@ -16,7 +16,7 @@ public sealed class MainWindow : Window
     private readonly TextBox _answer = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, IsReadOnly = true, Background = Brushes.Transparent, BorderThickness = new Thickness(0), FontSize = 18, Foreground = Brush.Parse("#F4F4F6"), Padding = new Thickness(8, 18), Text = "Press Start, then highlight text or code. Explanations run locally through Ollama." };
     private readonly TextBox _followUp = new() { PlaceholderText = "Ask a question or request more information…", Height = 58, FontSize = 15, Padding = new Thickness(16, 14), Background = Panel, Foreground = Brushes.White, BorderBrush = Brush.Parse("#315E78") };
     private readonly TextBlock _status = new() { Text = "Stopped", Foreground = Muted, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
-    private readonly ComboBox _mode = new() { ItemsSource = new[] { "Standard", "In Depth", "Study Notes" }, SelectedIndex = 0, MinWidth = 195, Height = 46, HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly ComboBox _mode = new() { ItemsSource = new[] { "Standard", "In Depth", "Study Notes" }, SelectedIndex = 0, Width = 260, Height = 50, FontSize = 18, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center };
     private readonly ComboBox _tabs = new() { MinWidth = 360, Height = 46, PlaceholderText = "Saved explanations" };
     private readonly Button _start = HudButton("START", true);
     private readonly Ellipse _dot = new() { Width = 10, Height = 10, Fill = Brush.Parse("#7D818C") };
@@ -29,7 +29,7 @@ public sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Title = "HighLenser"; Width = 920; Height = 780; MinWidth = 720; MinHeight = 620;
+        Title = "HighLenser"; Width = 920; Height = 780; MinWidth = 420; MinHeight = 350; MaxWidth = 1600; MaxHeight = 1200;
         WindowStartupLocation = WindowStartupLocation.CenterScreen; Background = Brushes.Transparent; Topmost = true; WindowDecorations = Avalonia.Controls.WindowDecorations.None;
         _start.Click += (_, _) => ToggleWatcher();
         _followUp.KeyDown += async (_, e) => { if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(_followUp.Text)) { e.Handled = true; await AskFollowUpAsync(); } };
@@ -40,7 +40,8 @@ public sealed class MainWindow : Window
             CornerRadius = new CornerRadius(28), BorderBrush = Brush.Parse("#365B86"), BorderThickness = new Thickness(1.5), Padding = new Thickness(26),
             Background = new LinearGradientBrush { StartPoint = new RelativePoint(0,0,RelativeUnit.Relative), EndPoint = new RelativePoint(1,1,RelativeUnit.Relative), GradientStops = { new GradientStop(Color.Parse("#FC0A0F1C"),0), new GradientStop(Color.Parse("#FC141230"),.62), new GradientStop(Color.Parse("#FC081A2B"),1) } }
         };
-        var root = new Grid { RowDefinitions = RowDefinitions.Parse("Auto,Auto,*,Auto,Auto,Auto") }; shell.Child = root; Content = shell;
+        var root = new Grid { Width = 860, Height = 720, RowDefinitions = RowDefinitions.Parse("Auto,Auto,*,Auto,Auto,Auto") };
+        shell.Child = new Viewbox { Stretch = Stretch.Fill, StretchDirection = StretchDirection.Both, Child = root }; Content = shell;
 
         var header = new Grid { ColumnDefinitions = ColumnDefinitions.Parse("*,Auto"), Cursor = new Cursor(StandardCursorType.SizeAll) };
         header.PointerPressed += (_, e) => { if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e); };
@@ -70,8 +71,10 @@ public sealed class MainWindow : Window
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         var smaller = HudButton("A−"); smaller.Click += (_, _) => _answer.FontSize = Math.Max(12, _answer.FontSize - 1);
         var larger = HudButton("A+"); larger.Click += (_, _) => _answer.FontSize = Math.Min(30, _answer.FontSize + 1);
+        var hudSmaller = HudButton("HUD−"); hudSmaller.Click += (_, _) => ResizeHud(-120, -95);
+        var hudLarger = HudButton("HUD+"); hudLarger.Click += (_, _) => ResizeHud(120, 95);
         var access = HudButton("ACCESS"); access.Click += (_, _) => OpenAccessibilitySettings();
-        tools.Children.Add(smaller); tools.Children.Add(larger); tools.Children.Add(access); Grid.SetColumn(tools,2); footer.Children.Add(tools);
+        tools.Children.Add(smaller); tools.Children.Add(larger); tools.Children.Add(hudSmaller); tools.Children.Add(hudLarger); tools.Children.Add(access); Grid.SetColumn(tools,2); footer.Children.Add(tools);
         Grid.SetRow(footer,5); root.Children.Add(footer);
         Closed += (_, _) => { _request?.Cancel(); _watcher.Dispose(); };
     }
@@ -83,6 +86,12 @@ public sealed class MainWindow : Window
         _running = !_running;
         if (_running) { _watcher.Start(); _start.Content = "STOP"; _start.Background = Brush.Parse("#CA4B56"); _dot.Fill = Brush.Parse("#5FE08A"); _status.Text = _watcher.IsTrusted ? "Watching for highlighted text" : "Accessibility permission required — use ACCESS"; }
         else { _watcher.Stop(); _start.Content = "START"; _start.Background = Brush.Parse("#7C5CFC"); _dot.Fill = Brush.Parse("#7D818C"); _status.Text = "Stopped"; }
+    }
+
+    private void ResizeHud(double widthChange, double heightChange)
+    {
+        Width = Math.Clamp(Width + widthChange, MinWidth, MaxWidth);
+        Height = Math.Clamp(Height + heightChange, MinHeight, MaxHeight);
     }
 
     private async Task ExplainAsync(string text)
