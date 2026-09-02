@@ -1,0 +1,77 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download HighLenser source package
+        shell: pwsh
+        run: |
+          $zipUrl = "https://raw.githubusercontent.com/SamuelSavarie/Queens-Student-Page/main/HighLenser-Windows-MVP%20%282%29.zip"
+          Invoke-WebRequest -Uri $zipUrl -OutFile "$env:RUNNER_TEMP\HighLenser.zip"
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP\HighLenser.zip" -DestinationPath "$env:GITHUB_WORKSPACE\Source"
+          if (-not (Test-Path "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj")) {
+            throw "The downloaded HighLenser source package is missing SelectionLens.csproj"
+          }
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish HighLenser
+        shell: pwsh
+        run: |
+          dotnet publish "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            --output "$env:GITHUB_WORKSPACE\ReleaseBuild\PublishedApp"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            throw "Inno Setup compiler was not found at $compiler"
+          }
+          & $compiler `
+            "/DSourceDir=$env:GITHUB_WORKSPACE\ReleaseBuild\PublishedApp" `
+            "/DOutputDir=$env:GITHUB_WORKSPACE\Release" `
+            "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Upload downloadable installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: HighLenser-Windows-Installer
+          path: Release/HighLenser-Setup.exe
+          if-no-files-found: error
+
+      - name: Add installer to tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Release/HighLenser-Setup.exe
+          generate_release_notes: true
