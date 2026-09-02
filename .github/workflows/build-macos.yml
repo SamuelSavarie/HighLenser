@@ -81,8 +81,16 @@ jobs:
           path: HighLenser-macOS-${{ matrix.label }}.dmg
           if-no-files-found: error
 
+      - name: Ensure version 1.1.0 release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view v1.1.0 >/dev/null 2>&1; then
+            gh release create v1.1.0 --target main --title "HighLenser v1.1.0" --notes "Professional HUD redesign for Windows and macOS."
+          fi
+
       - name: Attach installer to public release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
+          tag_name: v1.1.0
           files: HighLenser-macOS-${{ matrix.label }}.dmg
