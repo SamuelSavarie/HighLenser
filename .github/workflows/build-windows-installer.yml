@@ -31,8 +31,8 @@ jobs:
           }
           Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\MainWindow.xaml" "$env:GITHUB_WORKSPACE\Source\HighLenser\MainWindow.xaml" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\MainWindow.xaml.cs" "$env:GITHUB_WORKSPACE\Source\HighLenser\MainWindow.xaml.cs" -Force
-          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" -Raw).Replace("<Version>1.0.0</Version>", "<Version>1.1.2</Version>") | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj"
-          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss" -Raw).Replace('#define MyAppVersion "1.0.0"', '#define MyAppVersion "1.1.2"') | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" -Raw).Replace("<Version>1.0.0</Version>", "<Version>1.1.3</Version>") | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj"
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss" -Raw).Replace('#define MyAppVersion "1.0.0"', '#define MyAppVersion "1.1.3"') | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
@@ -76,18 +76,18 @@ jobs:
           path: Release/HighLenser-Setup.exe
           if-no-files-found: error
 
-      - name: Ensure version 1.1.2 release exists
+      - name: Ensure version 1.1.3 release exists
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v1.1.2 2>$null
+          gh release view v1.1.3 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create v1.1.2 --target main --title "HighLenser v1.1.2" --notes "Deeper Look sizing and quiz score fixes for Windows."
+            gh release create v1.1.3 --target main --title "HighLenser v1.1.3" --notes "Guided Ollama setup for macOS, with current Windows fixes included."
           }
 
       - name: Add installer to public release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.2
+          tag_name: v1.1.3
           files: Release/HighLenser-Setup.exe
