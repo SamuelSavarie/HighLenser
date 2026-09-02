@@ -5,7 +5,8 @@ namespace HighLenser.Mac;
 
 public sealed class OllamaClient
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(4) };
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(30) };
+    private const string Model = "qwen2.5-coder:3b";
 
     public async Task<string> ExplainAsync(string selectedText, string mode, CancellationToken token)
     {
@@ -38,13 +39,23 @@ SELECTED CONTENT:
         {
             using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/generate", new
             {
-                model = "qwen2.5-coder:3b",
+                model = Model,
                 prompt,
                 stream = false,
                 options = new { num_predict = mode == "In Depth" ? 1400 : 850, temperature = 0.2 }
             }, token);
             string json = await response.Content.ReadAsStringAsync(token);
-            if (!response.IsSuccessStatusCode) throw new InvalidOperationException(ReadError(json));
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = ReadError(json);
+                if (error.Contains("model", StringComparison.OrdinalIgnoreCase) &&
+                    error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    await DownloadModelAsync(token);
+                    return await ExplainAsync(selectedText, mode, token);
+                }
+                throw new InvalidOperationException(error);
+            }
             using var doc = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("response").GetString()?.Trim() ?? "Ollama returned an empty explanation.";
         }
@@ -56,6 +67,18 @@ SELECTED CONTENT:
         {
             throw new InvalidOperationException("The local model took too long. Try a shorter selection.");
         }
+    }
+
+    private static async Task DownloadModelAsync(CancellationToken token)
+    {
+        using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/pull", new
+        {
+            name = Model,
+            stream = false
+        }, token);
+        string json = await response.Content.ReadAsStringAsync(token);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"HighLenser could not download its AI model. {ReadError(json)}");
     }
 
     private static string ReadError(string json)
