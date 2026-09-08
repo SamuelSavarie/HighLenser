@@ -81,16 +81,16 @@ jobs:
           path: HighLenser-macOS-${{ matrix.label }}.dmg
           if-no-files-found: error
 
-      - name: Ensure version 1.2.0 release exists
+      - name: Ensure version 1.2.1 release exists
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v1.2.0 >/dev/null 2>&1; then
-            gh release create v1.2.0 --target main --title "HighLenser v1.2.0" --notes "Snapshot-to-notes, compact startup HUD, transparency, mascot hide mode, and clearer connection help."
+          if ! gh release view v1.2.1 >/dev/null 2>&1; then
+            gh release create v1.2.1 --target main --title "HighLenser v1.2.1" --notes "Fixes mascot-only hide mode so HighLenser stays open and reliably restores when the mascot is clicked."
           fi
 
       - name: Attach installer to public release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.0
+          tag_name: v1.2.1
           files: HighLenser-macOS-${{ matrix.label }}.dmg
