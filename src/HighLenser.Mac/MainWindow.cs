@@ -121,11 +121,11 @@ public sealed class MainWindow : Window
         var mascot = new Window
         {
             Width = 96, Height = 96, Topmost = true, ShowInTaskbar = false, CanResize = false,
-            SystemDecorations = SystemDecorations.None, Background = Brushes.Transparent,
+            WindowDecorations = Avalonia.Controls.WindowDecorations.None, Background = Brushes.Transparent,
             Content = new Button { Content = "🔎", FontSize = 52, Background = Brushes.Transparent, BorderThickness = new Thickness(0) }
         };
         if (mascot.Content is Button button) { ToolTip.SetTip(button, "Open HighLenser"); button.Click += (_, _) => mascot.Close(true); }
-        await mascot.ShowDialog<bool>();
+        await mascot.ShowDialog<bool>(this);
         Show(); Activate();
     }
 
@@ -135,7 +135,7 @@ public sealed class MainWindow : Window
         Hide();
         await Task.Delay(180);
         var overlay = new SnapshotOverlayWindow();
-        bool selected = await overlay.ShowDialog<bool>();
+        bool selected = await overlay.ShowDialog<bool>(this);
         Show(); Activate();
         if (_running) _watcher.Start();
         if (!selected) { _status.Text = "Snapshot cancelled"; return; }
@@ -163,7 +163,7 @@ public sealed class MainWindow : Window
 
     private static async Task<byte[]> CaptureScreenAreaAsync(PixelRect area, CancellationToken token)
     {
-        string path = Path.Combine(Path.GetTempPath(), $"highlenser-{Guid.NewGuid():N}.png");
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"highlenser-{Guid.NewGuid():N}.png");
         try
         {
             var start = new ProcessStartInfo { FileName = "/usr/sbin/screencapture", UseShellExecute = false };
