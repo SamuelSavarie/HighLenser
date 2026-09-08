@@ -16,6 +16,13 @@ public sealed record QuizSetData(List<QuizQuestionData> Questions, bool Limited)
 public sealed class OllamaExplainer
 {
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromMinutes(30) };
+    private const string VisionModel = "gemma3:4b";
+
+    public Task<string> SnapshotNotesAsync(byte[] pngBytes, CancellationToken cancellationToken)
+    {
+        const string prompt = "Read all useful text and visual information in this screenshot. Turn it into clear study notes with short headings and bullets. Preserve important names, numbers, formulas, dates, definitions, and relationships. Do not describe the screenshot itself and do not invent missing information.";
+        return SendVisionAsync(prompt, Convert.ToBase64String(pngBytes), cancellationToken, true);
+    }
 
     public Task<string> ExplainAsync(string selectedText, string model, string summaryMode, CancellationToken cancellationToken)
     {
@@ -248,16 +255,60 @@ Use simple, direct language.
         }
     }
 
+    private static async Task<string> SendVisionAsync(string prompt, string imageBase64, CancellationToken cancellationToken, bool allowDownload)
+    {
+        try
+        {
+            using var response = await Client.PostAsJsonAsync("http://localhost:11434/api/generate", new
+            {
+                model = VisionModel,
+                prompt,
+                images = new[] { imageBase64 },
+                stream = false,
+                options = new { num_predict = 1100, temperature = 0.1 }
+            }, cancellationToken);
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                string details = TryReadError(json);
+                if (allowDownload && details.Contains("model", StringComparison.OrdinalIgnoreCase) && details.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    await DownloadModelAsync(VisionModel, cancellationToken);
+                    return await SendVisionAsync(prompt, imageBase64, cancellationToken, false);
+                }
+                throw new InvalidOperationException($"Ollama could not read the snapshot. {details}");
+            }
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("response", out var result) && !string.IsNullOrWhiteSpace(result.GetString())
+                ? result.GetString()! : "No readable information was found in that snapshot.";
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("HighLenser cannot reach Ollama. Check that Ollama is open. If the vision model is still downloading, also check your Wi-Fi and try again.");
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("The snapshot took too long to process. Check your connection if this is the first snapshot, then try a smaller area.");
+        }
+    }
+
     private static async Task DownloadModelAsync(string model, CancellationToken cancellationToken)
     {
-        using var response = await Client.PostAsJsonAsync("http://localhost:11434/api/pull", new
+        try
         {
-            name = model,
-            stream = false
-        }, cancellationToken);
-        string json = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"HighLenser could not download its AI model. {TryReadError(json)} Run 'ollama pull {model}' and try again.");
+            using var response = await Client.PostAsJsonAsync("http://localhost:11434/api/pull", new
+            {
+                name = model,
+                stream = false
+            }, cancellationToken);
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"HighLenser could not download its AI model. Check your internet connection and try again. {TryReadError(json)}");
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("HighLenser cannot download its AI model. Check that Ollama is open and your computer is connected to the internet, then try again.");
+        }
     }
 
     private static string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "…";
