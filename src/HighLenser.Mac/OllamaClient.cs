@@ -76,6 +76,50 @@ SELECTED CONTENT:
         }
     }
 
+    public async Task<string> ExploreAsync(string topic, string originalContent, string fullNotes, CancellationToken token)
+    {
+        string prompt = $"""
+The user selected a word, phrase, or sentence because they do not understand it. Teach the selected part as if this is the first time they have ever seen it.
+
+Do not use the normal KEY TAKEAWAYS, WHY YOU SHOULD KNOW THIS, or SUMMARY format. Instead:
+- Begin with a direct, plain-language meaning of the selected part.
+- If it is a sentence, unpack it piece by piece.
+- Explain exactly how it connects to the full notes and original material supplied below.
+- Define any other unfamiliar words needed to understand it.
+- Give one or more simple, concrete examples. For an abstract idea, use an everyday example.
+- Be detailed and patient, but use simple language and do not assume prior knowledge.
+- Stay within the context of the notes. Mention when a word could have other meanings but explain the meaning used here.
+
+SELECTED PART THE USER NEEDS HELP WITH:
+{topic}
+
+ORIGINAL CONTENT:
+{Limit(originalContent, 6000)}
+
+FULL CURRENT NOTES:
+{Limit(fullNotes, 10000)}
+""";
+
+        try
+        {
+            using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/generate", new
+            {
+                model = Model,
+                prompt,
+                stream = false,
+                options = new { num_predict = 1400, temperature = 0.2 }
+            }, token);
+            string json = await response.Content.ReadAsStringAsync(token);
+            if (!response.IsSuccessStatusCode) throw new InvalidOperationException(ReadError(json));
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("response").GetString()?.Trim() ?? "Ollama returned an empty explanation.";
+        }
+        catch (HttpRequestException) { throw new InvalidOperationException("Ollama is not running. Open Ollama, then try again."); }
+        catch (TaskCanceledException) when (!token.IsCancellationRequested) { throw new InvalidOperationException("The local model took too long. Try selecting a shorter part."); }
+    }
+
+    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "…";
+
     private static async Task DownloadModelAsync(CancellationToken token)
     {
         try
