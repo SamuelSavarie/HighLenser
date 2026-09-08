@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private int _quizAnswered;
     private int _quizCorrect;
     private int _opacityStep;
+    private MascotWindow? _mascotWindow;
 
     public MainWindow()
     {
@@ -198,12 +199,26 @@ public partial class MainWindow : Window
 
     private void HideToMascot_Click(object sender, RoutedEventArgs e)
     {
+        if (_mascotWindow is not null) return;
         double left = Left;
         double top = Top + ActualHeight - 104;
-        Hide();
         var mascot = new MascotWindow { Left = left, Top = Math.Min(top, SystemParameters.WorkArea.Bottom - 104) };
-        mascot.ShowDialog();
-        Show(); Activate();
+        _mascotWindow = mascot;
+        mascot.RestoreRequested += (_, _) => RestoreFromMascot();
+        mascot.Closed += (_, _) => { if (ReferenceEquals(_mascotWindow, mascot)) RestoreFromMascot(); };
+        Hide();
+        mascot.Show();
+        mascot.Activate();
+    }
+
+    private void RestoreFromMascot()
+    {
+        var mascot = _mascotWindow;
+        _mascotWindow = null;
+        if (mascot?.IsVisible == true) mascot.Close();
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
     }
 
     private string GetSummaryMode() => (SummaryModeBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Standard";
@@ -687,6 +702,7 @@ public partial class MainWindow : Window
     {
         if (!_reallyClosing) { e.Cancel = true; WindowState = WindowState.Minimized; return; }
         _watcher.Dispose();
+        if (_mascotWindow is not null) { var mascot = _mascotWindow; _mascotWindow = null; mascot.Close(); }
         _requestCts?.Cancel();
         _quizCts?.Cancel();
     }
