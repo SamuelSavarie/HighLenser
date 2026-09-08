@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
     private int _quizQuestionNumber;
     private int _quizAnswered;
     private int _quizCorrect;
+    private int _opacityStep;
 
     public MainWindow()
     {
@@ -148,6 +150,61 @@ public partial class MainWindow : Window
     }
     private void HudSmaller_Click(object sender, RoutedEventArgs e) => ResizeHud(-120, -95);
     private void HudLarger_Click(object sender, RoutedEventArgs e) => ResizeHud(120, 95);
+
+    private async void Snapshot_Click(object sender, RoutedEventArgs e)
+    {
+        _watcher.Pause();
+        Hide();
+        await System.Threading.Tasks.Task.Delay(180);
+        var overlay = new SnapshotOverlayWindow();
+        bool selected = overlay.ShowDialog() == true;
+        Show(); Activate();
+        if (_monitoring) _watcher.Resume();
+        if (!selected) { StatusText.Text = "Snapshot cancelled"; return; }
+
+        _requestCts?.Cancel();
+        _requestCts = new CancellationTokenSource();
+        StatusText.Text = "Turning snapshot into notes…";
+        StatusDot.Fill = Brushes.Gold;
+        SetMascot("reading", "Reading your snapshot and building notes…");
+        try
+        {
+            byte[] png = CaptureScreenArea(overlay.SelectedPixels);
+            _lastSourceSelection = "Screen snapshot";
+            _lastExplanation = await _explainer.SnapshotNotesAsync(png, _requestCts.Token);
+            SetText(ExplanationBox, _lastExplanation);
+            ClearSavedTabSelection();
+            StatusText.Text = "Snapshot notes ready";
+            StatusDot.Fill = new SolidColorBrush(Color.FromRgb(95, 224, 138));
+            SetMascot("happy", "Your snapshot is now study notes.");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            SetText(ExplanationBox, ex.Message);
+            StatusText.Text = "Could not process snapshot";
+            StatusDot.Fill = Brushes.IndianRed;
+            SetMascot("sad", "I couldn’t read that snapshot. Check the message above.");
+        }
+    }
+
+    private void Transparency_Click(object sender, RoutedEventArgs e)
+    {
+        double[] levels = { 0.9, 0.76, 1.0 };
+        _opacityStep = (_opacityStep + 1) % levels.Length;
+        Opacity = levels[_opacityStep];
+        StatusText.Text = $"HUD opacity {(int)(Opacity * 100)}%";
+    }
+
+    private void HideToMascot_Click(object sender, RoutedEventArgs e)
+    {
+        double left = Left;
+        double top = Top + ActualHeight - 104;
+        Hide();
+        var mascot = new MascotWindow { Left = left, Top = Math.Min(top, SystemParameters.WorkArea.Bottom - 104) };
+        mascot.ShowDialog();
+        Show(); Activate();
+    }
 
     private string GetSummaryMode() => (SummaryModeBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Standard";
 
@@ -625,7 +682,6 @@ public partial class MainWindow : Window
         Height = Math.Clamp(ActualHeight + heightChange, MinHeight, SystemParameters.WorkArea.Height - 16);
         Top = Math.Max(SystemParameters.WorkArea.Top + 16, bottom - Height);
     }
-    private void Hide_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Exit_Click(object sender, RoutedEventArgs e) { _reallyClosing = true; Close(); }
     private void OnClosing(object? sender, CancelEventArgs e)
     {
@@ -637,4 +693,38 @@ public partial class MainWindow : Window
 
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int width, int height);
+    [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+    [DllImport("gdi32.dll")] private static extern bool BitBlt(IntPtr dest, int x, int y, int width, int height, IntPtr src, int srcX, int srcY, int rop);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);
+    [DllImport("gdi32.dll")] private static extern bool DeleteDC(IntPtr hdc);
+
+    private static byte[] CaptureScreenArea(Int32Rect area)
+    {
+        IntPtr screen = GetDC(IntPtr.Zero);
+        IntPtr memory = CreateCompatibleDC(screen);
+        IntPtr bitmap = CreateCompatibleBitmap(screen, area.Width, area.Height);
+        IntPtr old = SelectObject(memory, bitmap);
+        try
+        {
+            if (!BitBlt(memory, 0, 0, area.Width, area.Height, screen, area.X, area.Y, 0x00CC0020))
+                throw new InvalidOperationException("HighLenser could not capture that part of the screen.");
+            var source = Imaging.CreateBitmapSourceFromHBitmap(bitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(source));
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+            return stream.ToArray();
+        }
+        finally
+        {
+            SelectObject(memory, old);
+            DeleteObject(bitmap);
+            DeleteDC(memory);
+            ReleaseDC(IntPtr.Zero, screen);
+        }
+    }
 }
