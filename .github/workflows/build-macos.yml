@@ -81,16 +81,16 @@ jobs:
           path: HighLenser-macOS-${{ matrix.label }}.dmg
           if-no-files-found: error
 
-      - name: Ensure version 1.2.1 release exists
+      - name: Ensure version 1.2.2 release exists
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v1.2.1 >/dev/null 2>&1; then
-            gh release create v1.2.1 --target main --title "HighLenser v1.2.1" --notes "Fixes mascot-only hide mode so HighLenser stays open and reliably restores when the mascot is clicked."
+          if ! gh release view v1.2.2 >/dev/null 2>&1; then
+            gh release create v1.2.2 --target main --title "HighLenser v1.2.2" --notes "Explore Selected now teaches words, phrases, and sentences from the beginning using the full notes as context, with clear connections and examples."
           fi
 
       - name: Attach installer to public release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.1
+          tag_name: v1.2.2
           files: HighLenser-macOS-${{ matrix.label }}.dmg
