@@ -34,8 +34,8 @@ jobs:
           Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\OllamaExplainer.cs" "$env:GITHUB_WORKSPACE\Source\HighLenser\OllamaExplainer.cs" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\SnapshotOverlayWindow.cs" "$env:GITHUB_WORKSPACE\Source\HighLenser\SnapshotOverlayWindow.cs" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\src\HighLenser.Windows\MascotWindow.cs" "$env:GITHUB_WORKSPACE\Source\HighLenser\MascotWindow.cs" -Force
-          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" -Raw).Replace("<Version>1.0.0</Version>", "<Version>1.2.1</Version>") | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj"
-          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss" -Raw).Replace('#define MyAppVersion "1.0.0"', '#define MyAppVersion "1.2.1"') | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj" -Raw).Replace("<Version>1.0.0</Version>", "<Version>1.2.2</Version>") | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\SelectionLens.csproj"
+          (Get-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss" -Raw).Replace('#define MyAppVersion "1.0.0"', '#define MyAppVersion "1.2.2"') | Set-Content "$env:GITHUB_WORKSPACE\Source\HighLenser\Installer\HighLenser.iss"
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
@@ -79,18 +79,18 @@ jobs:
           path: Release/HighLenser-Setup.exe
           if-no-files-found: error
 
-      - name: Ensure version 1.2.1 release exists
+      - name: Ensure version 1.2.2 release exists
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v1.2.1 2>$null
+          gh release view v1.2.2 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create v1.2.1 --target main --title "HighLenser v1.2.1" --notes "Fixes mascot-only hide mode so HighLenser stays open and reliably restores when the mascot is clicked."
+            gh release create v1.2.2 --target main --title "HighLenser v1.2.2" --notes "Explore Selected now teaches words, phrases, and sentences from the beginning using the full notes as context, with clear connections and examples."
           }
 
       - name: Add installer to public release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.1
+          tag_name: v1.2.2
           files: Release/HighLenser-Setup.exe
