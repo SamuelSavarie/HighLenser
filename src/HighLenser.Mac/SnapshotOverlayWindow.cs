@@ -17,7 +17,7 @@ public sealed class SnapshotOverlayWindow : Window
 
     public SnapshotOverlayWindow()
     {
-        SystemDecorations = SystemDecorations.None;
+        WindowDecorations = Avalonia.Controls.WindowDecorations.None;
         CanResize = false;
         Topmost = true;
         ShowInTaskbar = false;
