@@ -28,6 +28,7 @@ public sealed class MainWindow : Window
     private string _source = "";
     private bool _running;
     private int _opacityStep;
+    private Window? _mascotWindow;
 
     public MainWindow()
     {
@@ -50,7 +51,7 @@ public sealed class MainWindow : Window
         header.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { _dot, new TextBlock { Text = "H I G H  //  L E N S E R", Foreground = Cyan, FontSize = 14, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center } } });
         var snapshot = HudButton("▣"); snapshot.Click += async (_, _) => await TakeSnapshotAsync(); ToolTip.SetTip(snapshot, "Draw a box and turn a screenshot into notes");
         var transparency = HudButton("◐"); transparency.Click += (_, _) => CycleTransparency(); ToolTip.SetTip(transparency, "Change HUD transparency");
-        var minimize = HudButton("−"); minimize.Click += async (_, _) => await HideToMascotAsync(); ToolTip.SetTip(minimize, "Hide to mascot");
+        var minimize = HudButton("−"); minimize.Click += (_, _) => HideToMascot(); ToolTip.SetTip(minimize, "Hide to mascot");
         var close = HudButton("×"); close.Click += (_, _) => Close();
         var windowButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { snapshot, transparency, minimize, close } }; Grid.SetColumn(windowButtons, 1); header.Children.Add(windowButtons); root.Children.Add(header);
 
@@ -115,28 +116,42 @@ public sealed class MainWindow : Window
         _status.Text = $"HUD opacity {(int)(Opacity * 100)}%";
     }
 
-    private async Task HideToMascotAsync()
+    private void HideToMascot()
     {
-        Hide();
+        if (_mascotWindow is not null) return;
         var mascot = new Window
         {
             Width = 96, Height = 96, Topmost = true, ShowInTaskbar = false, CanResize = false,
             WindowDecorations = Avalonia.Controls.WindowDecorations.None, Background = Brushes.Transparent,
             Content = new Button { Content = "🔎", FontSize = 52, Background = Brushes.Transparent, BorderThickness = new Thickness(0) }
         };
-        if (mascot.Content is Button button) { ToolTip.SetTip(button, "Open HighLenser"); button.Click += (_, _) => mascot.Close(true); }
-        await mascot.ShowDialog<bool>(this);
-        Show(); Activate();
+        _mascotWindow = mascot;
+        if (mascot.Content is Button button) { ToolTip.SetTip(button, "Open HighLenser"); button.Click += (_, _) => RestoreFromMascot(); }
+        mascot.Closed += (_, _) => { if (ReferenceEquals(_mascotWindow, mascot)) RestoreFromMascot(); };
+        Hide();
+        mascot.Show();
+        mascot.Activate();
+    }
+
+    private void RestoreFromMascot()
+    {
+        var mascot = _mascotWindow;
+        _mascotWindow = null;
+        if (mascot?.IsVisible == true) mascot.Close();
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
     }
 
     private async Task TakeSnapshotAsync()
     {
         _watcher.Stop();
-        Hide();
+        double previousOpacity = Opacity;
+        Opacity = 0;
         await Task.Delay(180);
         var overlay = new SnapshotOverlayWindow();
         bool selected = await overlay.ShowDialog<bool>(this);
-        Show(); Activate();
+        Opacity = previousOpacity; Activate();
         if (_running) _watcher.Start();
         if (!selected) { _status.Text = "Snapshot cancelled"; return; }
 
