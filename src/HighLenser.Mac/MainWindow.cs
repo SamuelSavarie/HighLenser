@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -26,10 +27,11 @@ public sealed class MainWindow : Window
     private CancellationTokenSource? _request;
     private string _source = "";
     private bool _running;
+    private int _opacityStep;
 
     public MainWindow()
     {
-        Title = "HighLenser"; Width = 920; Height = 780; MinWidth = 420; MinHeight = 350; MaxWidth = 1600; MaxHeight = 1200;
+        Title = "HighLenser"; Width = 640; Height = 520; MinWidth = 360; MinHeight = 280; MaxWidth = 1600; MaxHeight = 1200; Opacity = 0.9;
         WindowStartupLocation = WindowStartupLocation.CenterScreen; Background = Brushes.Transparent; Topmost = true; WindowDecorations = Avalonia.Controls.WindowDecorations.None;
         _start.Click += (_, _) => ToggleWatcher();
         _followUp.KeyDown += async (_, e) => { if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(_followUp.Text)) { e.Handled = true; await AskFollowUpAsync(); } };
@@ -46,9 +48,11 @@ public sealed class MainWindow : Window
         var header = new Grid { ColumnDefinitions = ColumnDefinitions.Parse("*,Auto"), Cursor = new Cursor(StandardCursorType.SizeAll) };
         header.PointerPressed += (_, e) => { if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e); };
         header.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { _dot, new TextBlock { Text = "H I G H  //  L E N S E R", Foreground = Cyan, FontSize = 14, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center } } });
-        var minimize = HudButton("−"); minimize.Click += (_, _) => WindowState = WindowState.Minimized;
+        var snapshot = HudButton("▣"); snapshot.Click += async (_, _) => await TakeSnapshotAsync(); ToolTip.SetTip(snapshot, "Draw a box and turn a screenshot into notes");
+        var transparency = HudButton("◐"); transparency.Click += (_, _) => CycleTransparency(); ToolTip.SetTip(transparency, "Change HUD transparency");
+        var minimize = HudButton("−"); minimize.Click += async (_, _) => await HideToMascotAsync(); ToolTip.SetTip(minimize, "Hide to mascot");
         var close = HudButton("×"); close.Click += (_, _) => Close();
-        var windowButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { minimize, close } }; Grid.SetColumn(windowButtons, 1); header.Children.Add(windowButtons); root.Children.Add(header);
+        var windowButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { snapshot, transparency, minimize, close } }; Grid.SetColumn(windowButtons, 1); header.Children.Add(windowButtons); root.Children.Add(header);
 
         var tabsRow = new Grid { ColumnDefinitions = ColumnDefinitions.Parse("Auto,*,Auto"), Margin = new Thickness(0,28,0,18) };
         tabsRow.Children.Add(new TextBlock { Text = "SAVED TABS", Foreground = Muted, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,18,0) });
@@ -101,6 +105,79 @@ public sealed class MainWindow : Window
     {
         Width = Math.Clamp(Width + widthChange, MinWidth, MaxWidth);
         Height = Math.Clamp(Height + heightChange, MinHeight, MaxHeight);
+    }
+
+    private void CycleTransparency()
+    {
+        double[] levels = { 0.9, 0.76, 1.0 };
+        _opacityStep = (_opacityStep + 1) % levels.Length;
+        Opacity = levels[_opacityStep];
+        _status.Text = $"HUD opacity {(int)(Opacity * 100)}%";
+    }
+
+    private async Task HideToMascotAsync()
+    {
+        Hide();
+        var mascot = new Window
+        {
+            Width = 96, Height = 96, Topmost = true, ShowInTaskbar = false, CanResize = false,
+            SystemDecorations = SystemDecorations.None, Background = Brushes.Transparent,
+            Content = new Button { Content = "🔎", FontSize = 52, Background = Brushes.Transparent, BorderThickness = new Thickness(0) }
+        };
+        if (mascot.Content is Button button) { ToolTip.SetTip(button, "Open HighLenser"); button.Click += (_, _) => mascot.Close(true); }
+        await mascot.ShowDialog<bool>();
+        Show(); Activate();
+    }
+
+    private async Task TakeSnapshotAsync()
+    {
+        _watcher.Stop();
+        Hide();
+        await Task.Delay(180);
+        var overlay = new SnapshotOverlayWindow();
+        bool selected = await overlay.ShowDialog<bool>();
+        Show(); Activate();
+        if (_running) _watcher.Start();
+        if (!selected) { _status.Text = "Snapshot cancelled"; return; }
+
+        _request?.Cancel();
+        _request = new CancellationTokenSource();
+        _status.Text = "Turning snapshot into notes…";
+        _dot.Fill = Brush.Parse("#F3D84A");
+        try
+        {
+            byte[] png = await CaptureScreenAreaAsync(overlay.SelectedPixels, _request.Token);
+            _source = "Screen snapshot";
+            _answer.Text = await _ollama.SnapshotNotesAsync(png, _request.Token);
+            _status.Text = "Snapshot notes ready";
+            _dot.Fill = Brush.Parse("#5FE08A");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _answer.Text = ex.Message;
+            _status.Text = "Could not process snapshot";
+            _dot.Fill = Brush.Parse("#CA4B56");
+        }
+    }
+
+    private static async Task<byte[]> CaptureScreenAreaAsync(PixelRect area, CancellationToken token)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"highlenser-{Guid.NewGuid():N}.png");
+        try
+        {
+            var start = new ProcessStartInfo { FileName = "/usr/sbin/screencapture", UseShellExecute = false };
+            start.ArgumentList.Add("-x");
+            start.ArgumentList.Add("-R");
+            start.ArgumentList.Add($"{area.X},{area.Y},{area.Width},{area.Height}");
+            start.ArgumentList.Add(path);
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("HighLenser could not start the Mac screenshot tool.");
+            await process.WaitForExitAsync(token);
+            if (process.ExitCode != 0 || !File.Exists(path) || new FileInfo(path).Length == 0)
+                throw new InvalidOperationException("HighLenser could not capture the screen. Allow Screen Recording for HighLenser in System Settings, then try again.");
+            return await File.ReadAllBytesAsync(path, token);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     private async Task ExplainAsync(string text)
