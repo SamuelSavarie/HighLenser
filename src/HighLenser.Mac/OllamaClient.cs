@@ -7,6 +7,13 @@ public sealed class OllamaClient
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(30) };
     private const string Model = "qwen2.5-coder:3b";
+    private const string VisionModel = "gemma3:4b";
+
+    public Task<string> SnapshotNotesAsync(byte[] pngBytes, CancellationToken token)
+    {
+        const string prompt = "Read all useful text and visual information in this screenshot. Turn it into clear study notes with short headings and bullets. Preserve important names, numbers, formulas, dates, definitions, and relationships. Do not describe the screenshot itself and do not invent missing information.";
+        return SendVisionAsync(prompt, Convert.ToBase64String(pngBytes), token, true);
+    }
 
     public async Task<string> ExplainAsync(string selectedText, string mode, CancellationToken token)
     {
@@ -71,14 +78,72 @@ SELECTED CONTENT:
 
     private static async Task DownloadModelAsync(CancellationToken token)
     {
-        using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/pull", new
+        try
         {
-            name = Model,
-            stream = false
-        }, token);
-        string json = await response.Content.ReadAsStringAsync(token);
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"HighLenser could not download its AI model. {ReadError(json)}");
+            using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/pull", new
+            {
+                name = Model,
+                stream = false
+            }, token);
+            string json = await response.Content.ReadAsStringAsync(token);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"HighLenser could not download its AI model. Check your internet connection and try again. {ReadError(json)}");
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("HighLenser cannot download its AI model. Check that Ollama is open and your Mac is connected to the internet, then try again.");
+        }
+    }
+
+    private static async Task<string> SendVisionAsync(string prompt, string image, CancellationToken token, bool allowDownload)
+    {
+        try
+        {
+            using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/generate", new
+            {
+                model = VisionModel,
+                prompt,
+                images = new[] { image },
+                stream = false,
+                options = new { num_predict = 1100, temperature = 0.1 }
+            }, token);
+            string json = await response.Content.ReadAsStringAsync(token);
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = ReadError(json);
+                if (allowDownload && error.Contains("model", StringComparison.OrdinalIgnoreCase) && error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    await DownloadVisionModelAsync(token);
+                    return await SendVisionAsync(prompt, image, token, false);
+                }
+                throw new InvalidOperationException($"Ollama could not read the snapshot. {error}");
+            }
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("response").GetString()?.Trim() ?? "No readable information was found in that snapshot.";
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("HighLenser cannot reach Ollama. Check that Ollama is open. If the vision model is still downloading, also check your Wi-Fi and try again.");
+        }
+        catch (TaskCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("The snapshot took too long to process. Check your connection if this is the first snapshot, then try a smaller area.");
+        }
+    }
+
+    private static async Task DownloadVisionModelAsync(CancellationToken token)
+    {
+        try
+        {
+            using var response = await Http.PostAsJsonAsync("http://localhost:11434/api/pull", new { name = VisionModel, stream = false }, token);
+            string json = await response.Content.ReadAsStringAsync(token);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"HighLenser could not download its snapshot model. Check your internet connection and try again. {ReadError(json)}");
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("HighLenser cannot download its snapshot model. Check that Ollama is open and your Mac is connected to the internet, then try again.");
+        }
     }
 
     private static string ReadError(string json)
