@@ -40,20 +40,27 @@ SELECTED CONTENT:
     public Task<string> ExploreAsync(string topic, string originalSelection, string currentExplanation, string model, string summaryMode, CancellationToken cancellationToken)
     {
         string prompt = $"""
-{FormatInstructions(summaryMode)}
+The user selected a word, phrase, or sentence because they do not understand it. Teach the selected part as if this is the first time they have ever seen it.
 
-Give a focused, deeper explanation of the exact topic marked FOCUS TOPIC. Explain what it means in this context, how it works, examples, and its connection to the larger subject. Do not merely repeat the earlier explanation.
+Do not use the normal KEY TAKEAWAYS, WHY YOU SHOULD KNOW THIS, or SUMMARY format. Instead:
+- Begin with a direct, plain-language meaning of the selected part.
+- If it is a sentence, unpack it piece by piece.
+- Explain exactly how it connects to the full notes and original material supplied below.
+- Define any other unfamiliar words needed to understand it.
+- Give one or more simple, concrete examples. For an abstract idea, use an everyday example.
+- Be detailed and patient, but use simple language and do not assume prior knowledge.
+- Stay within the context of the notes. Mention when a word could have other meanings but explain the meaning used here.
 
-FOCUS TOPIC:
+SELECTED PART THE USER NEEDS HELP WITH:
 {topic}
 
 ORIGINAL SELECTED CONTENT:
-{Limit(originalSelection, 8000)}
+{Limit(originalSelection, 6000)}
 
-EARLIER EXPLANATION:
-{Limit(currentExplanation, 8000)}
+FULL CURRENT NOTES:
+{Limit(currentExplanation, 10000)}
 """;
-        return GenerateAsync(prompt, model, summaryMode, cancellationToken);
+        return SendAsync(prompt, model, 1400, cancellationToken);
     }
 
     public Task<string> FollowUpAsync(string request, string originalSelection, string currentExplanation, string model, string summaryMode, CancellationToken cancellationToken)
