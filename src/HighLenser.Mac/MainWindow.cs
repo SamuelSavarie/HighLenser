@@ -67,7 +67,7 @@ public sealed class MainWindow : Window
         var modeRow = new Grid { ColumnDefinitions = ColumnDefinitions.Parse("Auto,*,Auto"), Margin = new Thickness(0,18,0,14) };
         modeRow.Children.Add(new TextBlock { Text = "SUMMARY LEVEL", Foreground = Muted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         Grid.SetColumn(_mode,1); modeRow.Children.Add(_mode);
-        var explore = HudButton("EXPLORE SELECTED"); explore.Click += async (_, _) => await ExplainAsync(string.IsNullOrWhiteSpace(_answer.SelectedText) ? _source : _answer.SelectedText); Grid.SetColumn(explore,2); modeRow.Children.Add(explore);
+        var explore = HudButton("EXPLORE SELECTED"); explore.Click += async (_, _) => await ExploreSelectedAsync(); Grid.SetColumn(explore,2); modeRow.Children.Add(explore);
         Grid.SetRow(modeRow,3); root.Children.Add(modeRow);
 
         Grid.SetRow(_followUp,4); root.Children.Add(_followUp);
@@ -203,6 +203,25 @@ public sealed class MainWindow : Window
         try { _answer.Text = await _ollama.ExplainAsync(text, _mode.SelectedItem?.ToString() ?? "Standard", _request.Token); _status.Text = "Ready to investigate"; _dot.Fill = Brush.Parse("#5FE08A"); }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _answer.Text = ex.Message; _status.Text = "Could not explain this selection"; _dot.Fill = Brush.Parse("#CA4B56"); }
+    }
+
+    private async Task ExploreSelectedAsync()
+    {
+        string topic = _answer.SelectedText?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(topic)) { _status.Text = "Select a word or sentence in the notes first"; return; }
+        string fullNotes = _answer.Text ?? "";
+        _request?.Cancel();
+        _request = new CancellationTokenSource();
+        _status.Text = "Explaining the selected part from the beginning…";
+        _dot.Fill = Brush.Parse("#F3D84A");
+        try
+        {
+            _answer.Text = await _ollama.ExploreAsync(topic, _source, fullNotes, _request.Token);
+            _status.Text = "Selected part explained in context";
+            _dot.Fill = Brush.Parse("#5FE08A");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _answer.Text = ex.Message; _status.Text = "Could not explore the selected part"; _dot.Fill = Brush.Parse("#CA4B56"); }
     }
 
     private async Task AskFollowUpAsync()
